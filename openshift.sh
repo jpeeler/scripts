@@ -2845,7 +2845,7 @@ validate_preflight()
   #  preflight_failure=1
   #fi
   if [ "$CONF_INSTALL_METHOD" = yum ]; then
-      configure_oso_repos
+      configure_oso_repos()
   fi
 
   # Test that known problematic RPMs aren't present
