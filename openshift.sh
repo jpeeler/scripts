@@ -2820,10 +2820,10 @@ validate_preflight()
     fi
   fi
 
-  if [ "$CONF_INSTALL_METHOD" = yum -a ! "$ose_repo_base" ]; then
-    echo "OpenShift: Install method yum requires providing URLs for at least OpenShift repos."
-    preflight_failure=1
-  fi
+  #if [ "$CONF_INSTALL_METHOD" = yum -a ! "$ose_repo_base" ]; then
+  #  echo "OpenShift: Install method yum requires providing URLs for at least OpenShift repos."
+  #  preflight_failure=1
+  #fi
 
   # Test that known problematic RPMs aren't present
   # ... ?
