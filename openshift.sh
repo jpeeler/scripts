@@ -812,26 +812,6 @@ configure_subscription()
    configure_ose_yum_repos # refresh if overwritten by validator
 }
 
-configure_oso_repos()
-{
-  cat <<EOF> /etc/yum.repos.d/openshift-origin-deps.repo
-[openshift-origin-deps]
-name=openshift-origin-deps
-baseurl=http://mirror.openshift.com/pub/origin-server/release/3/rhel-6/dependencies/x86_64/
-gpgcheck=0
-enabled=1
-EOF
-
-  cat <<EOF> /etc/yum.repos.d/openshift-origin.repo
-[openshift-origin]
-name=openshift-origin
-baseurl=http://mirror.openshift.com/pub/origin-server/release/3/rhel-6/packages/x86_64/
-gpgcheck=0
-enabled=1
-EOF
-
-}
-
 abort_install()
 {
   [[ "$@"x == x ]] || echo "$@"
@@ -2840,12 +2820,9 @@ validate_preflight()
     fi
   fi
 
-  #if [ "$CONF_INSTALL_METHOD" = yum -a ! "$ose_repo_base" ]; then
-  #  echo "OpenShift: Install method yum requires providing URLs for at least OpenShift repos."
-  #  preflight_failure=1
-  #fi
-  if [ "$CONF_INSTALL_METHOD" = yum ]; then
-      configure_oso_repos()
+  if [ "$CONF_INSTALL_METHOD" = yum -a ! "$ose_repo_base" ]; then
+    echo "OpenShift: Install method yum requires providing URLs for at least OpenShift repos."
+    preflight_failure=1
   fi
 
   # Test that known problematic RPMs aren't present
