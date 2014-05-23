@@ -674,9 +674,9 @@ configure_yum_repos()
   for repo in optional jbosseap jbossews rhscl; do
     eval "need_${repo}_repo && configure_${repo}_repo"
   done
-  configure_oso_yum_repos
+  #configure_oso_yum_repos
   yum clean metadata
-  yum_install_or_exit openshift-enterprise-release
+  #yum_install_or_exit openshift-enterprise-release
 }
 
 # JPEELER: probably can remove
