@@ -926,14 +926,15 @@ remove_abrt_addon_python()
 # JPEELER: will need revising
 parse_cartridges()
 {
+    #[jbossews]=openshift-origin-cartridge-jbossews
+    #[jbosseap]=openshift-origin-cartridge-jbosseap
+    #[jenkins]='openshift-origin-cartridge-jenkins-client openshift-origin-cartridge-jenkins'
+
   # $p maps a cartridge specification to a comma-delimited list a packages.
   local -A p=(
     [cron]=openshift-origin-cartridge-cron
     [diy]=openshift-origin-cartridge-diy
     [haproxy]=openshift-origin-cartridge-haproxy
-    [jbossews]=openshift-origin-cartridge-jbossews
-    [jbosseap]=openshift-origin-cartridge-jbosseap
-    [jenkins]='openshift-origin-cartridge-jenkins-client openshift-origin-cartridge-jenkins'
     [mysql]=openshift-origin-cartridge-mysql
     [nodejs]=openshift-origin-cartridge-nodejs
     [perl]=openshift-origin-cartridge-perl
