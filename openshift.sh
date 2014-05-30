@@ -1903,6 +1903,7 @@ configure_named_zone()
     rm -f /var/named/K${zone}*
     dnssec-keygen -a ${bind_keyalgorithm} -b ${bind_keysize} -n USER -r /dev/urandom -K /var/named ${zone}
     bind_key="$(grep Key: /var/named/K${zone}*.private | cut -d ' ' -f 2)"
+    echo $bind_key > /var/www/html/rsync_bind_key
     rm -f /var/named/K${zone}*
   fi
 
@@ -2105,10 +2106,13 @@ configure_dns_plugin()
 {
   if [ "x$bind_key" = x ] && [ "x$bind_krb_keytab" = x ]
   then
-    echo 'WARNING: Neither key nor keytab has been set for communication'
-    echo 'with BIND. You will need to modify the value of BIND_KEYVALUE'
-    echo 'and BIND_KEYALGORITHM in /etc/openshift/plugins.d/openshift-origin-dns-nsupdate.conf'
-    echo 'after installation.'
+    # this is probably too template specific
+    until [ "x$bind_key" != x ]; do
+      bind_key=$(wget -q -O - --no-check-certificate "https://${broker_hostname}/rsync_bind_key")
+      if [ $? -ne 0 ]; then
+        sleep 5
+      fi
+    done
   fi
 
   mkdir -p /etc/openshift/plugins.d
@@ -2920,12 +2924,12 @@ configure_openshift()
   broker && configure_controller
   broker && configure_remote_user_auth_plugin
   broker && configure_messaging_plugin
-  broker && configure_dns_plugin
   broker && configure_httpd_auth
   broker && configure_routing_plugin
   broker && configure_broker_ssl_cert
   broker && configure_access_keys_on_broker
   broker && configure_rhc
+  broker && configure_dns_plugin
 
   node && configure_port_proxy
   node && configure_gears
