@@ -2324,7 +2324,7 @@ install_rsync_pub_key()
     >> /root/.ssh/authorized_keys
     RESULT=$?
 
-    if [ $RESULT -ne 0]; then
+    if [ $RESULT -ne 0 ]; then
         sleep 5
     fi
   done
