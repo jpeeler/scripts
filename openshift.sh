@@ -2315,14 +2315,22 @@ install_rsync_pub_key()
   mkdir -p /root/.ssh
   chmod 700 /root/.ssh
 
+  echo "OpenShift node: will wait for broker to fetch SSH key."
+
   RESULT=1
   until [ $RESULT -eq 0 ]; do
     # try to get key hosted on broker machine
     wget -q -O- --no-check-certificate "https://${broker_hostname}/rsync_id_rsa.pub?host=${node_hostname}" \
     >> /root/.ssh/authorized_keys
     RESULT=$?
+
+    if [ $RESULT -ne 0]; then
+        sleep 5
+    fi
   done
   chmod 644 /root/.ssh/authorized_keys
+
+  echo "OpenShift node: SSH key downloaded from broker successfully."
 }
 
 echo_installation_intentions()
@@ -2921,9 +2929,8 @@ configure_openshift()
   node && update_openshift_facts_on_node
 
   node && broker && fix_broker_routing
-  echo "OpenShift: Completed configuring OpenShift, will wait for broker to fetch SSH key."
+  echo "OpenShift: Completed configuring OpenShift"
   node && install_rsync_pub_key
-  echo "OpenShift: SSH key downloaded from broker successfully."
 
 }
 
