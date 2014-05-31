@@ -1903,6 +1903,7 @@ configure_named_zone()
     rm -f /var/named/K${zone}*
     dnssec-keygen -a ${bind_keyalgorithm} -b ${bind_keysize} -n USER -r /dev/urandom -K /var/named ${zone}
     bind_key="$(grep Key: /var/named/K${zone}*.private | cut -d ' ' -f 2)"
+    echo $bind_key > /var/www/html/rsync_bind_key
     rm -f /var/named/K${zone}*
   fi
 
