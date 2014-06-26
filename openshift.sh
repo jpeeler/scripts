@@ -664,6 +664,12 @@ configure_repos()
     (yum)
       configure_yum_repos
       ;;
+    (rhn)
+      configure_rhn_channels
+      ;;
+    (rhsm)
+      configure_rhsm_channels
+      ;;
   esac
 
   echo "OpenShift: Completed configuring repos."
@@ -790,7 +796,6 @@ YUM
   fi
 }
 
-# JPEELER: can probably be removed
 configure_subscription()
 {
    configure_ose_yum_repos # if requested
@@ -810,6 +815,77 @@ configure_subscription()
    # wrong channel before yum-validator does its work. So, install it afterward.
    yum_install_or_exit openshift-enterprise-release
    configure_ose_yum_repos # refresh if overwritten by validator
+}
+
+configure_rhn_channels()
+{
+  if [ "x$CONF_RHN_REG_ACTKEY" != x ]; then
+    echo "OpenShift: Register to RHN Classic using an activation key"
+    eval "rhnreg_ks --force --activationkey=${CONF_RHN_REG_ACTKEY} --profilename='$profile_name' ${CONF_RHN_REG_OPTS}" || abort_install
+  elif [[ "${CONF_RHN_USER}" && "${CONF_RHN_PASS}" ]]
+  then
+    echo "OpenShift: Register to RHN Classic with username and password"
+    set +x # don't log password
+    echo "rhnreg_ks --force --profilename='$profile_name' --username '${CONF_RHN_USER}' ${CONF_RHN_REG_OPTS}"
+    eval "rhnreg_ks --force --profilename='$profile_name' --username '${CONF_RHN_USER}' --password '${CONF_RHN_PASS}' ${CONF_RHN_REG_OPTS}" || abort_install
+    set -x
+  else
+    echo "OpenShift: No credentials given for RHN Classic; assuming already configured"
+  fi
+
+  if [[ "${CONF_RHN_USER}" && "${CONF_RHN_PASS}" ]]
+  then
+    # Enable the node or infrastructure channel to enable installing the release RPM
+    repos=('rhel-x86_64-server-6-rhscl-1')
+    if ! need_node_repo || need_infra_repo ; then
+      repos+=('rhel-x86_64-server-6-ose-2.0-infrastructure')
+    fi
+    need_node_repo && repos+=('rhel-x86_64-server-6-ose-2.0-node' 'jb-ews-2-x86_64-server-6-rpm')
+    need_client_tools_repo && repos+=('rhel-x86_64-server-6-ose-2.0-rhc')
+    need_jbosseap_cartridge_repo && repos+=('rhel-x86_64-server-6-ose-2.0-jbosseap' 'jbappplatform-6-x86_64-server-6-rpm')
+
+    set +x # don't log password
+    for repo in "${repos[@]}"; do
+      [[ "$(rhn-channel -l)" == *"$repo"* ]] || rhn-channel --add --channel "$repo" --user "${CONF_RHN_USER}" --password "${CONF_RHN_PASS}" || abort_install
+    done
+    set -x
+  fi
+
+  configure_subscription
+}
+
+configure_rhsm_channels()
+{
+  if [[ "${CONF_RHN_USER}" && "${CONF_RHN_PASS}" ]]
+  then
+    set +x # don't log password
+    echo "OpenShift: Register with RHSM"
+    echo "subscription-manager register --force --username='$CONF_RHN_USER' --name '$profile_name' ${CONF_RHN_REG_OPTS}"
+    eval "subscription-manager register --force --username='$CONF_RHN_USER' --password='$CONF_RHN_PASS' --name '$profile_name' ${CONF_RHN_REG_OPTS}" || abort_install
+    set -x
+  else
+    echo "OpenShift: No credentials given for RHSM; assuming already configured"
+  fi
+
+  if [[ "${CONF_SM_REG_POOL}" ]]
+  then
+    echo "OpenShift: Removing all current subscriptions"
+    subscription-manager remove --all
+  else
+    echo "OpenShift: No pool ids were given, so none are being registered"
+  fi
+
+  # If CONF_SM_REG_POOL was not specified, this for loop is a no-op.
+  for poolid in ${CONF_SM_REG_POOL//[, :+\/-]/ }; do
+    echo "OpenShift: Registering subscription from pool id $poolid"
+    subscription-manager attach --pool "$poolid" || abort_install
+  done
+
+  # Enable the node or infrastructure repo to enable installing the release RPM
+  if need_node_repo; then subscription-manager repos --enable=rhel-6-server-ose-2.0-node-rpms || abort_install
+  else subscription-manager repos --enable=rhel-6-server-ose-2.0-infra-rpms || abort_install
+  fi
+  configure_subscription
 }
 
 abort_install()
