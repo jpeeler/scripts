@@ -663,6 +663,7 @@ configure_repos()
   case "$CONF_INSTALL_METHOD" in
     (osoyum)
       configure_osoyum_repos
+      ;;
     (yum)
       configure_yum_repos
       ;;
@@ -938,7 +939,7 @@ yum_install_or_exit()
       echo "OpenShift: Please ensure relevant repos/subscriptions are configured."
       abort_install
     fi
-    let COUNTER+=1
+    let COUNT+=1
   done
 }
 
