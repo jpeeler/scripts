@@ -661,6 +661,8 @@ configure_repos()
   # configure_rhsm_channels functions will use the need_${repo}_repo
   # predicate functions define above.
   case "$CONF_INSTALL_METHOD" in
+    (osoyum)
+      configure_osoyum_repos
     (yum)
       configure_yum_repos
       ;;
@@ -675,29 +677,56 @@ configure_repos()
   echo "OpenShift: Completed configuring repos."
 }
 
+configure_osoyum_repos()
+{
+  yum clean metadata
+}
+
 configure_yum_repos()
 {
+  configure_rhel_repo
+
   for repo in optional jbosseap jbossews rhscl; do
     eval "need_${repo}_repo && configure_${repo}_repo"
   done
-  #configure_oso_yum_repos
+  configure_ose_yum_repos
   yum clean metadata
-  #yum_install_or_exit openshift-enterprise-release
+  yum_install_or_exit openshift-enterprise-release
 }
 
-# JPEELER: probably can remove
-configure_oso_yum_repos()
+configure_ose_yum_repos()
 { # define plain yum repos if the parameters are given
   # this can be useful even if the main subscription is via RHN
   for repo in infra node jbosseap_cartridge client_tools; do
     if [ "$ose_repo_base" != "" ]; then
       layout=puddle; [ -n "$CONF_CDN_LAYOUT" ] && layout=cdn
-      eval "need_${repo}_repo && def_oso_yum_repo $ose_repo_base $layout $repo"
+      eval "need_${repo}_repo && def_ose_yum_repo $ose_repo_base $layout $repo"
     fi
     if [ "$ose_extra_repo_base" != "" ]; then
-      eval "need_${repo}_repo && def_oso_yum_repo $ose_extra_repo_base extra $repo"
+      eval "need_${repo}_repo && def_ose_yum_repo $ose_extra_repo_base extra $repo"
     fi
   done
+}
+
+configure_rhel_repo()
+{
+  # In order for the %post section to succeed, it must have a way of
+  # installing from RHEL. The post section cannot access the method that
+  # was used in the base install. This configures a RHEL yum repo which
+  # you must supply.
+if [ "${rhel_repo}x" != "x" ]; then
+  cat > /etc/yum.repos.d/rhel.repo <<YUM
+[rhel6]
+name=RHEL 6 base OS
+baseurl=${rhel_repo}
+enabled=1
+gpgcheck=0
+priority=20
+sslverify=false
+exclude=tomcat6*
+
+YUM
+fi
 }
 
 configure_optional_repo()
@@ -716,7 +745,7 @@ YUM
 fi
 }
 
-def_oso_yum_repo()
+def_ose_yum_repo()
 {
   repo_base=$1
   layout=$2  # one of: puddle, extra, cdn
@@ -978,7 +1007,6 @@ install_node_pkgs()
 # Remove abrt-addon-python if necessary
 # https://bugzilla.redhat.com/show_bug.cgi?id=907449
 # This only affects the python v2 cart
-# JPEELER remove
 remove_abrt_addon_python()
 {
   if grep 'Enterprise Linux Server release 6.4' /etc/redhat-release && rpm -q abrt-addon-python && rpm -q openshift-origin-cartridge-python; then
@@ -1004,18 +1032,16 @@ remove_abrt_addon_python()
 #     installed; intended to be used by configure_repos.
 #   CONF_NO_JBOSSEWS - Boolean value indicating whether or not JBossEWS will be
 #     installed; intended to be used by configure_repos.
-# JPEELER: will need revising
 parse_cartridges()
 {
-    #[jbossews]=openshift-origin-cartridge-jbossews
-    #[jbosseap]=openshift-origin-cartridge-jbosseap
-    #[jenkins]='openshift-origin-cartridge-jenkins-client openshift-origin-cartridge-jenkins'
-
   # $p maps a cartridge specification to a comma-delimited list a packages.
   local -A p=(
     [cron]=openshift-origin-cartridge-cron
     [diy]=openshift-origin-cartridge-diy
     [haproxy]=openshift-origin-cartridge-haproxy
+    [jbossews]=openshift-origin-cartridge-jbossews
+    [jbosseap]=openshift-origin-cartridge-jbosseap
+    [jenkins]='openshift-origin-cartridge-jenkins-client openshift-origin-cartridge-jenkins'
     [mysql]=openshift-origin-cartridge-mysql
     [nodejs]=openshift-origin-cartridge-nodejs
     [perl]=openshift-origin-cartridge-perl
@@ -2579,7 +2605,6 @@ is_false()
 #   CONF_NODE_APACHE_FRONTEND
 #   CONF_OSE_REPO_BASE
 #   CONF_OSE_ERRATA_BASE
-# JPEELER: will need rhel variables pruned
 set_defaults()
 {
   # By default, we run do_all_actions, which performs all the steps of
@@ -2840,9 +2865,11 @@ validate_preflight()
   echo "OpenShift: Begin preflight validation."
   preflight_failure=
 
-  # Test that this isn't CentOS < 6 or Fedora
+  # Test that this isn't RHEL/CentOS < 6 or Fedora
+  # CentOS release 6.5 (Final)CentOS release 6.5 (Final)
+  # Red Hat Enterprise Linux Server release 6.5 (Santiago)
   if ! grep -q "release* 6" /etc/redhat-release; then
-    echo "OpenShift: This process needs to begin with at least CentOS release 6 installed."
+    echo "OpenShift: This process needs to begin with at least release 6 installed."
     preflight_failure=1
   fi
 
@@ -2862,7 +2889,6 @@ validate_preflight()
     preflight_failure=1
   fi
 
-  # JPEELER kill it?
   # test that subscription parameters are available if needed
   if [[ "$CONF_INSTALL_METHOD" = rhn ]]; then
     # Check whether we are already registered with RHN and already have
@@ -2915,10 +2941,10 @@ validate_preflight()
     fi
   fi
 
-  #if [ "$CONF_INSTALL_METHOD" = yum -a ! "$ose_repo_base" ]; then
-  #  echo "OpenShift: Install method yum requires providing URLs for at least OpenShift repos."
-  #  preflight_failure=1
-  #fi
+  if [ "$CONF_INSTALL_METHOD" = yum -a ! "$ose_repo_base" ]; then
+    echo "OpenShift: Install method yum requires providing URLs for at least OpenShift repos."
+    preflight_failure=1
+  fi
 
   # Test that known problematic RPMs aren't present
   # ... ?
@@ -2931,6 +2957,7 @@ install_rpms()
 {
   echo "OpenShift: Begin installing RPMs."
   # we often rely on latest selinux policy and other updates
+  #JPEELER: if not using current image, re-enable the below
   #echo "OpenShift: yum update"
   #yum $disable_plugin clean all
   #yum $disable_plugin update -y || abort_install
@@ -2945,7 +2972,7 @@ install_rpms()
   broker && install_broker_pkgs
   node && install_node_pkgs
   node && install_cartridges
-  #node && remove_abrt_addon_python
+  node && remove_abrt_addon_python
   broker && install_rhc_pkg
   echo "OpenShift: Completed installing RPMs."
 }
