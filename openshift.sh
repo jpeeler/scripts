@@ -2958,10 +2958,9 @@ install_rpms()
 {
   echo "OpenShift: Begin installing RPMs."
   # we often rely on latest selinux policy and other updates
-  #JPEELER: if not using current image, re-enable the below
-  #echo "OpenShift: yum update"
-  #yum $disable_plugin clean all
-  #yum $disable_plugin update -y || abort_install
+  echo "OpenShift: yum update"
+  yum $disable_plugin clean all
+  yum $disable_plugin update -y || abort_install
   # Install ntp and ntpdate because they may not be present in a RHEL
   # minimal install.
   yum_install_or_exit ntp ntpdate lokkit
