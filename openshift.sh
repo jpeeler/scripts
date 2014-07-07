@@ -3038,9 +3038,9 @@ configure_openshift()
   node && update_openshift_facts_on_node
 
   node && broker && fix_broker_routing
-  echo "OpenShift: Completed configuring OpenShift"
   node && install_rsync_pub_key
 
+  echo "OpenShift: Completed configuring OpenShift."
 }
 
 reboot_after()
