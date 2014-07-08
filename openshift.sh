@@ -2424,7 +2424,7 @@ install_rsync_pub_key()
   mkdir -p /root/.ssh
   chmod 700 /root/.ssh
 
-  WAIT=300
+  WAIT=600
   END=`date -d "$WAIT seconds" +%s`
   echo "OpenShift node: will wait for $WAIT seconds to fetch SSH key."
 
